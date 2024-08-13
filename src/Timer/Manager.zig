@@ -8,13 +8,13 @@
 pub const Self = @This();
 
 const win = @import("std").os.windows;
-const TimerReq = @import("TimerReq.zig");
+const TimerRequest = @import("Request.zig");
 
 //                          ----------------      Members     ----------------
 
 pub var queryFrequency: u64 = undefined;
 
-first: ?*TimerReq = null,
+first: ?*TimerRequest = null,
 
 //                          ----------------      Public      ----------------
 
@@ -46,7 +46,7 @@ pub fn ResolveAndNextTimeout(self: *Self) ?u64 {
     return if (curr < firstFireTime) 0 else @intCast(firstFireTime - curr);
 }
 
-pub fn RegisterReq(self: *Self, req: *TimerReq, fireTimeMs: u64) void {
+pub fn RegisterReq(self: *Self, req: *TimerRequest, fireTimeMs: u64) void {
     req.fireTime = fireTimeMs + GetTime();
 
     if (self.first == null) {

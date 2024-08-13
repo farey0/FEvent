@@ -6,10 +6,10 @@
 const Self = @This();
 
 const Mutex = @import("FLib").Mutex;
-const TimerManager = @import("TimerManager.zig");
+const TimerManager = @import("Timer/Manager.zig");
 
 const Handle = @import("Handle.zig");
-const BaseReq = @import("BaseReq.zig");
+const BaseReq = @import("Request.zig");
 
 const win = @import("std").os.windows;
 const ws2_32 = win.ws2_32;
@@ -173,7 +173,7 @@ pub fn Run(self: *Self, defaultTimeOut: ?u32) !void {
             const baseReq = @as(*BaseReq, @fieldParentPtr("overlapped", entry.lpOverlapped));
 
             switch (baseReq.handle.type) {
-                .Tcp => @import("Tcp.zig").AnyReq.HandleCompletion(baseReq, err),
+                .Tcp => @import("Tcp/AnyRequest.zig").HandleCompletion(baseReq, err),
             }
         }
     }

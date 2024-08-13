@@ -1,7 +1,7 @@
 const win = @import("std").os.windows;
 
 const Loop = @import("Loop.zig");
-const Tcp = @import("Tcp.zig");
+const Tcp = @import("Tcp/Tcp.zig");
 
 test "simple test" {
     try main();
