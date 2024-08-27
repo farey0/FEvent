@@ -9,6 +9,8 @@ const Self = @This();
 
 const Loop = @import("Loop.zig");
 
+const Windows = @import("Windows.zig");
+
 pub const Type = enum {
     Tcp,
 };

@@ -17,7 +17,7 @@
     .dependencies = .{
         .FLib = .{
             .url = "../FLib/",
-            .hash = "1220f477917a0397ea295c60b4d4a9d117579e3498ab5ea8f7f6d134af5110af602a",
+            .hash = "122024d6ec85d0586924b8449585b5dd2ccd03a01be0d5b93ce41f3fd76fc33453d9",
         },
     },
     .paths = .{

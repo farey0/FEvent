@@ -14,24 +14,30 @@ const BaseReq = @import("../Request.zig");
 pub const AnyRequest = @import("AnyRequest.zig");
 pub const ConnectRequest = @import("ConnectRequest.zig");
 
-const win = @import("std").os.windows;
-const ws2_32 = win.ws2_32;
+const Win = @import("../Windows.zig");
+const WTcp = Win.Tcp;
 
-pub const AddressFamily = enum(i32) {
-    Unspecified = ws2_32.AF.UNSPEC,
-    IPv4 = ws2_32.AF.INET,
-    IPv6 = ws2_32.AF.INET6,
+pub const Error = Win.ErrorCode;
+
+pub const State = enum {
+    Undefined,
+    Created, // default state when created
+    Connecting, // performing a connection
+    Connected,
+    Accepting, // accepting a connection on this socket
+    Listening,
 };
 
 //                          ----------------      Members     ----------------
 
-socket: ws2_32.SOCKET = ws2_32.INVALID_SOCKET,
+socket: WTcp = .{},
 handle: Handle = undefined,
 reqCount: usize = undefined,
+state: State = .Undefined,
 
 //                          ----------------      Public      ----------------
 
-pub fn Create(self: *Self, loop: *Loop, family: AddressFamily) !void {
+pub fn Create(self: *Self, loop: *Loop) Win.Error!void {
     self.* = .{
         .handle = .{
             .loop = loop,
@@ -41,62 +47,62 @@ pub fn Create(self: *Self, loop: *Loop, family: AddressFamily) !void {
         .reqCount = 0,
     };
 
-    self.socket = ws2_32.socket(@intFromEnum(family), ws2_32.SOCK.STREAM, 0);
+    try self.socket.Init();
 
-    if (self.socket == ws2_32.INVALID_SOCKET) {
-        return win.unexpectedError(win.kernel32.GetLastError());
-    }
+    self.state = .Created;
 
-    loop.RegisterHandle(&self.handle);
+    errdefer self.socket.Close();
+
+    try loop.RegisterHandle(&self.handle, self.socket.handle);
 }
 
-pub fn Close(self: *Self) (error{ActiveRequest} || @import("std").posix.UnexpectedError)!void {
-    try win.closesocket(self.socket);
+pub fn Close(self: *Self) Win.Error!void {
+    if (self.reqCount != 0)
+        unreachable;
 
-    self.socket = ws2_32.INVALID_SOCKET;
+    self.socket.Close();
 
     self.handle.loop.UnregisterHandle(&self.handle);
 }
 
+pub fn BindAndListen(self: *Self, address: []const u8, port: u16, backlog: ?i32) (Win.Error || error{BadAddress})!void {
+    if (self.state != .Created)
+        unreachable;
+
+    const wAddress = try WTcp.MakeAddress(address, port);
+
+    try self.socket.BindAndListen(&wAddress, backlog);
+
+    self.state = .Listening;
+}
+
+pub fn Accept(self: *Self, accepting: *Self, acceptBuffer: [WTcp.AddressesLength]u8, req: *AnyRequest) !void {
+    if (self.state != .Listening or req.req != .accept)
+        unreachable;
+
+    req.req.accept.acceptBuffer = acceptBuffer[0..];
+
+    if (try self.socket.AcceptEx(accepting.*, acceptBuffer, &req.base.overlapped)) {
+        accepting.state = .Connected;
+        req.req.accept.cb(self, req, accepting, null);
+    } else self.AddReqCount();
+}
+
 pub fn Connect(self: *Self, req: *AnyRequest) !void {
-    if (req.req != .connection)
+    if (req.req != .connection or self.state != .Created)
         unreachable;
 
     const connectReq = &req.req.connection;
 
-    const localAddr = Loop.StaticManager.GetAddrIPv4Any();
-
-    {
-        const ret = ws2_32.bind(self.socket, @ptrCast(&localAddr), @sizeOf(@TypeOf(localAddr)));
-
-        if (ret == ws2_32.SOCKET_ERROR)
-            return win.unexpectedError(win.kernel32.GetLastError());
-    }
-
-    const ret = Loop.StaticManager.ConnectEx(
-        self.socket,
-        &connectReq.address,
-        null,
-        0,
-        null,
-        &req.base.overlapped,
-    );
-
-    if (ret == 0) {
-        const lastError = ws2_32.WSAGetLastError();
-
-        if (lastError != .WSA_IO_PENDING)
-            return win.unexpectedWSAError(lastError);
-
-        connectReq.timerReq.SetData(req);
-        self.handle.loop.timerManager.RegisterReq(&connectReq.timerReq, connectReq.timeout);
-
-        self.AddReqCount();
-    } else {
-        // ConnectEx completed immediately
-
+    if (try self.socket.Connect(&req.base.overlapped, &connectReq.address)) {
+        self.state = .Connected;
         req.cb.con(self, connectReq, null);
+        return;
     }
+
+    self.AddReqCount();
+    connectReq.timerReq.SetData(req);
+    self.handle.loop.timerManager.RegisterReq(&connectReq.timerReq, connectReq.timeout);
 }
 
 //                          ------------- Public Getters/Setters -------------

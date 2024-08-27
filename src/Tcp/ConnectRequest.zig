@@ -7,18 +7,18 @@
 
 const Self = @This();
 
-const win = @import("std").os.windows;
-const ws2_32 = win.ws2_32;
+const Win = @import("../Windows.zig");
+const WTcp = Win.Tcp;
 
 const Tcp = @import("Tcp.zig");
 const TimerReq = @import("../Timer/Request.zig");
 const AnyReq = @import("AnyRequest.zig");
 
-pub const Callback = *const fn (tcp: *Tcp, req: *Self, err: ?win.Win32Error) void;
+pub const Callback = *const fn (tcp: *Tcp, req: *Self, err: ?Win.ErrorCode) void;
 
 //                          ----------------      Members     ----------------
 
-address: ws2_32.sockaddr.in = .{
+address: WTcp.Address = .{
     .port = undefined,
     .addr = undefined,
 },
@@ -28,30 +28,11 @@ timeout: u64 = undefined,
 
 //                          ----------------      Public      ----------------
 
-pub fn Make(addressRaw: []const u8, port: u16, timeout: u64, tcp: *Tcp, cb: Callback) error{BadAddress}!AnyReq {
-
-    // need null terminated string for inet_addr
-    var buffer: [12]u8 = undefined;
-
-    if (addressRaw.len > 11)
-        return error.BadAddress;
-
-    @memcpy(buffer[0..addressRaw.len], addressRaw[0..addressRaw.len]);
-
-    buffer[addressRaw.len] = 0;
-
-    const address: ws2_32.sockaddr.in = .{
-        .addr = ws2_32.inet_addr(&buffer),
-        .port = ws2_32.htons(port),
-    };
-
-    if (address.addr == ws2_32.INADDR_NONE)
-        return error.BadAddress;
-
+pub fn Make(address: []const u8, port: u16, timeout: u64, tcp: *Tcp, cb: Callback) error{BadAddress}!AnyReq {
     return .{
         .req = .{
             .connection = .{
-                .address = address,
+                .address = try WTcp.MakeAddress(address, port),
                 .timeout = timeout,
                 .timerReq = .{
                     .cb = TimeOutCallback,
@@ -67,7 +48,7 @@ pub fn Make(addressRaw: []const u8, port: u16, timeout: u64, tcp: *Tcp, cb: Call
 
         .base = .{
             .handle = &tcp.handle,
-            .overlapped = @import("std").mem.zeroes(win.OVERLAPPED),
+            .overlapped = @import("std").mem.zeroes(Win.Request),
         },
     };
 }
@@ -77,40 +58,11 @@ pub fn TimeOutCallback(req: *TimerReq) void {
     const anyReq = req.GetData(AnyReq);
     const tcp = @as(*Tcp, @fieldParentPtr("handle", anyReq.base.handle));
 
-    const success = win.kernel32.CancelIoEx(tcp.socket, &anyReq.base.overlapped) != 0;
+    tcp.socket.CancelRequest(&anyReq.base.overlapped) catch unreachable;
+}
 
-    // idk why CancelIoEx don't fire a completion in the IO port for ConnectEx
-    // so we check with GetOverlappedResult
-
-    if (!success) {
-        @import("std").log.err("CancelIoEx failed with error code : {s}", .{@tagName(win.kernel32.GetLastError())});
-        @panic("");
-    } else {
-        var dummyBytes: win.DWORD = undefined;
-
-        const ret = win.kernel32.GetOverlappedResult(
-            tcp.socket,
-            &anyReq.base.overlapped,
-            &dummyBytes,
-            @intFromBool(false),
-        );
-
-        if (ret == 0) {
-            const winError = win.kernel32.GetLastError();
-
-            if (winError == .OPERATION_ABORTED) {
-                anyReq.alive = false;
-                tcp.DecReqCount();
-                anyReq.cb.con(tcp, &anyReq.req.connection, winError);
-            } else {
-                @import("std").log.err("GetOverlappedResult failed with error code : {s}", .{@tagName(winError)});
-                @panic("");
-            }
-        } else {
-            // operation completed when we was trying to cancel it, idk how to handle it rn
-            unreachable;
-        }
-    }
+pub fn GetAnyReq(self: *Self) *AnyReq {
+    return @as(*AnyReq, @fieldParentPtr("req", @as(*AnyReq.ReqUnion, @fieldParentPtr("connection", self))));
 }
 
 //                          ------------- Public Getters/Setters -------------

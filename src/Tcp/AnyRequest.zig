@@ -13,16 +13,21 @@ const win = @import("std").os.windows;
 const Tcp = @import("Tcp.zig");
 
 pub const ConnectRequest = @import("ConnectRequest.zig");
+pub const AcceptRequest = @import("AcceptRequest.zig");
 const BaseReq = @import("../Request.zig");
+
+pub const ReqUnion = union(enum) {
+    connection: ConnectRequest,
+    accept: AcceptRequest,
+};
 
 //                          ----------------      Members     ----------------
 
-req: union(enum) {
-    connection: ConnectRequest,
-},
+req: ReqUnion,
 
 cb: union {
     con: ConnectRequest.Callback,
+    accept: AcceptRequest.Callback,
 },
 
 alive: bool = undefined,
@@ -43,9 +48,15 @@ pub fn HandleCompletion(baseReq: *BaseReq, err: ?win.Win32Error) void {
             anyReq.alive = false;
             tcp.DecReqCount();
 
+            if (err != null) tcp.state = .Connected;
             anyReq.cb.con(tcp, connect, err);
         },
+        .accept => {},
     }
+}
+
+pub fn CleanOV(self: *Self) void {
+    self.base.overlapped = @import("std").mem.zeroes(win.OVERLAPPED);
 }
 
 //                          ------------- Public Getters/Setters -------------

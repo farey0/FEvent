@@ -11,7 +11,7 @@ pub fn main() !void {
     var loop = try Loop.Make();
 
     var tcp: Tcp = .{};
-    try tcp.Create(&loop, .IPv4);
+    try tcp.Create(&loop);
 
     var conReq = try Tcp.ConnectRequest.Make("127.0.0.1", 80, 1000, &tcp, cb);
 
@@ -22,7 +22,7 @@ pub fn main() !void {
     try loop.Close();
 }
 
-pub fn cb(tcp: *Tcp, req: *Tcp.ConnectRequest, err: ?win.Win32Error) void {
+pub fn cb(tcp: *Tcp, req: *Tcp.ConnectRequest, err: ?Tcp.Error) void {
     if (err) |er| {
         @import("std").log.err("tcp connect cb : Error message : {s}", .{@tagName(er)});
     }
