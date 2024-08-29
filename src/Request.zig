@@ -8,13 +8,13 @@
 const Self = @This();
 
 const Handle = @import("Handle.zig");
-const win = @import("std").os.windows;
+const Win = @import("Windows.zig");
 
 //                          ----------------      Members     ----------------
 
 data: ?*anyopaque = null,
 handle: *Handle = undefined,
-overlapped: win.OVERLAPPED = undefined,
+overlapped: Win.Request = undefined,
 
 //                          ----------------      Public      ----------------
 
@@ -30,6 +30,13 @@ pub fn GetData(self: *Self, comptime T: type) *T {
         unreachable;
 
     return @ptrCast(self.data.?);
+}
+
+pub fn Make(handle: *Handle) Self {
+    return .{
+        .handle = handle,
+        .overlapped = @import("std").mem.zeroes(Win.Request),
+    };
 }
 
 //                          ------------- Public Getters/Setters -------------

@@ -38,12 +38,20 @@ const LPFN_CONNECTEX = *const fn (
     lpOverlapped: ?*win.OVERLAPPED,
 ) callconv(@import("std").os.windows.WINAPI) win.BOOL;
 
+pub const LPFN_DISCONNECTEX = *const fn (
+    s: ?ws2_32.SOCKET,
+    lpOverlapped: ?*win.OVERLAPPED,
+    dwFlags: u32,
+    dwReserved: u32,
+) callconv(@import("std").os.windows.WINAPI) win.BOOL;
+
 //                          ----------------      Members     ----------------
 
 handle: ws2_32.SOCKET = InvalidSocket,
 
 var ConnectExPtr: LPFN_CONNECTEX = undefined;
 var AcceptExPtr: ws2_32.LPFN_ACCEPTEX = undefined;
+var DisconnectExPtr: LPFN_DISCONNECTEX = undefined;
 var AddrIPv4Any: ws2_32.sockaddr.in = undefined;
 
 //                          ----------------      Public      ----------------
@@ -74,17 +82,20 @@ pub fn CancelRequest(self: Self, ov: *Request) Error!void {
         return FireUnexpected();
 }
 
-pub fn BindAndListen(self: Self, address: *Address, backlog: ?i32) Error!void {
+pub fn BindAndListen(self: Self, address: *const Address, backlog: ?i32) Error!void {
     self.ValidateSocket();
 
-    if (ws2_32.bind(self.handle, address, @sizeOf(@TypeOf(address.*))) == ws2_32.SOCKET_ERROR)
+    if (ws2_32.bind(self.handle, @ptrCast(address), @sizeOf(@TypeOf(address.*))) == ws2_32.SOCKET_ERROR)
         return FireWSAUnexpected();
 
-    if (ws2_32.listen(self.handle, if (backlog) backlog.? else ws2_32.SOMAXCONN) == ws2_32.SOCKET_ERROR)
+    if (ws2_32.listen(self.handle, if (backlog != null) backlog.? else ws2_32.SOMAXCONN) == ws2_32.SOCKET_ERROR)
         return FireWSAUnexpected();
 }
 
-pub fn AcceptEx(self: Self, in: Self, receiveBuffer: [AddressesLength]u8, ov: *Request) Error!bool {
+pub fn AcceptEx(self: Self, in: Self, receiveBuffer: []u8, ov: *Request) Error!bool {
+    if (receiveBuffer.len < AddressesLength)
+        unreachable;
+
     self.ValidateSocket();
     in.ValidateSocket();
 
@@ -93,12 +104,12 @@ pub fn AcceptEx(self: Self, in: Self, receiveBuffer: [AddressesLength]u8, ov: *R
     if (AcceptExPtr(
         self.handle,
         in.handle,
-        receiveBuffer,
+        receiveBuffer.ptr,
         0,
         AddressLength,
         AddressLength,
         &dummyBytesCount,
-        &ov,
+        ov,
     ) == 0) {
         const LastError = ws2_32.WSAGetLastError();
 
@@ -161,6 +172,23 @@ pub fn Connect(self: Self, ov: *Request, address: *Address) Error!bool {
     return true;
 }
 
+// launch a disconnect overlapped request
+// return true if the disconnect immediately succeeded
+pub fn Disconnect(self: Self, ov: *Request) Error!bool {
+    self.ValidateSocket();
+
+    if (DisconnectExPtr(self.handle, ov, 0, 0) == 0) {
+        const LastError = ws2_32.WSAGetLastError();
+
+        if (LastError != .WSA_IO_PENDING)
+            return win.unexpectedWSAError(LastError);
+
+        return false;
+    }
+
+    return true;
+}
+
 // Init things we need before using this namespace
 pub fn InitSystem() Error!void {
     var wsaData: ws2_32.WSADATA = undefined;
@@ -175,6 +203,16 @@ pub fn InitSystem() Error!void {
 
     var guidConnectEx: win.GUID = ws2_32.WSAID_CONNECTEX;
     var guidAcceptEx: win.GUID = ws2_32.WSAID_ACCEPTEX;
+    var guidDisconnectEx: win.GUID = .{
+        // see https://github.com/tpn/winsdk-10/blob/master/Include/10.0.10240.0/um/MSWSock.h
+
+        //  {0x7fda2e11,0x8630,0x436f,{0xa0, 0x31, 0xf5, 0x36, 0xa6, 0xee, 0xc1, 0x57}}
+
+        .Data1 = 0x7fda2e11,
+        .Data2 = 0x8630,
+        .Data3 = 0x436f,
+        .Data4 = [8]u8{ 0xa0, 0x31, 0xf5, 0x36, 0xa6, 0xee, 0xc1, 0x57 },
+    };
 
     // need a dummy sock to load a function via WSAIoctl
     var dummyBytes: win.DWORD = undefined;
@@ -206,6 +244,19 @@ pub fn InitSystem() Error!void {
         @sizeOf(@TypeOf(guidAcceptEx)),
         @ptrCast(&AcceptExPtr),
         @sizeOf(@TypeOf(AcceptExPtr)),
+        &dummyBytes,
+        null,
+        null,
+    ) != 0)
+        return FireUnexpected();
+
+    if (ws2_32.WSAIoctl(
+        dummySock,
+        ws2_32.SIO_GET_EXTENSION_FUNCTION_POINTER,
+        &guidDisconnectEx,
+        @sizeOf(@TypeOf(guidDisconnectEx)),
+        @ptrCast(&DisconnectExPtr),
+        @sizeOf(@TypeOf(DisconnectExPtr)),
         &dummyBytes,
         null,
         null,

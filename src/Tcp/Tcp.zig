@@ -12,7 +12,6 @@ const Handle = @import("../Handle.zig");
 const BaseReq = @import("../Request.zig");
 
 pub const AnyRequest = @import("AnyRequest.zig");
-pub const ConnectRequest = @import("ConnectRequest.zig");
 
 const Win = @import("../Windows.zig");
 const WTcp = Win.Tcp;
@@ -26,6 +25,8 @@ pub const State = enum {
     Connected,
     Accepting, // accepting a connection on this socket
     Listening,
+    Disconnecting,
+    Disconnected,
 };
 
 //                          ----------------      Members     ----------------
@@ -76,15 +77,16 @@ pub fn BindAndListen(self: *Self, address: []const u8, port: u16, backlog: ?i32)
     self.state = .Listening;
 }
 
-pub fn Accept(self: *Self, accepting: *Self, acceptBuffer: [WTcp.AddressesLength]u8, req: *AnyRequest) !void {
+pub fn Accept(self: *Self, accepting: *Self, acceptBuffer: []u8, req: *AnyRequest) !void {
     if (self.state != .Listening or req.req != .accept)
         unreachable;
 
-    req.req.accept.acceptBuffer = acceptBuffer[0..];
+    req.req.accept.acceptBuffer = acceptBuffer;
+    req.req.accept.accepting = accepting;
 
-    if (try self.socket.AcceptEx(accepting.*, acceptBuffer, &req.base.overlapped)) {
+    if (try self.socket.AcceptEx(accepting.socket, acceptBuffer, &req.base.overlapped)) {
         accepting.state = .Connected;
-        req.req.accept.cb(self, req, accepting, null);
+        req.cb(self, req, null);
     } else self.AddReqCount();
 }
 
@@ -96,13 +98,26 @@ pub fn Connect(self: *Self, req: *AnyRequest) !void {
 
     if (try self.socket.Connect(&req.base.overlapped, &connectReq.address)) {
         self.state = .Connected;
-        req.cb.con(self, connectReq, null);
+        req.cb(self, req, null);
         return;
     }
 
     self.AddReqCount();
     connectReq.timerReq.SetData(req);
     self.handle.loop.timerManager.RegisterReq(&connectReq.timerReq, connectReq.timeout);
+}
+
+pub fn Disconnect(self: *Self, req: *AnyRequest) !void {
+    if (req.req != .disconnect or self.state != .Connected)
+        unreachable;
+
+    if (try self.socket.Disconnect(&req.base.overlapped)) {
+        self.state = .Disconnected;
+        req.cb(self, req, null);
+        return;
+    }
+
+    self.AddReqCount();
 }
 
 //                          ------------- Public Getters/Setters -------------

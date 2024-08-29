@@ -72,7 +72,7 @@ pub fn Make() !Self {
 }
 
 pub fn Run(self: *Self, defaultTimeOut: ?u32) !void {
-    const TimeOut: u32 = if (defaultTimeOut == null) 1000 else defaultTimeOut.?;
+    const TimeOut: u32 = if (defaultTimeOut == null) 200 else defaultTimeOut.?;
 
     // OVERLAPPED_ENTRY is 32 octets, so we have largely enough stack size on windows (1mb so 16384 OVERLAPPED_ENTRY)
     var entries: [512]WLoop.Entry = undefined;
