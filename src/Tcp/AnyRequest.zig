@@ -16,6 +16,8 @@ const Tcp = @import("Tcp.zig");
 pub const Connect = @import("Request/Connect.zig");
 pub const Accept = @import("Request/Accept.zig");
 pub const Disconnect = @import("Request/Disconnect.zig");
+pub const Send = @import("Request/Send.zig");
+pub const Read = @import("Request/Read.zig");
 
 const TimerReq = @import("../Timer/Request.zig");
 
@@ -27,6 +29,8 @@ pub const ReqUnion = union(enum) {
     connection: Connect,
     accept: Accept,
     disconnect: Disconnect,
+    send: Send,
+    read: Read,
 };
 
 //                          ----------------      Members     ----------------
@@ -43,7 +47,7 @@ base: BaseReq = .{},
 //                          ----------------      Public      ----------------
 
 // Public so the loop can access it. Don't use it as an user
-pub fn HandleCompletion(baseReq: *BaseReq, err: ?Win.ErrorCode) void {
+pub fn HandleCompletion(baseReq: *BaseReq, err: ?Win.ErrorCode, bytesTransferred: u32) void {
     const anyReq = @as(*Self, @fieldParentPtr("base", baseReq));
     const tcp = @as(*Tcp, @fieldParentPtr("handle", anyReq.base.handle));
 
@@ -59,6 +63,10 @@ pub fn HandleCompletion(baseReq: *BaseReq, err: ?Win.ErrorCode) void {
         .disconnect => {
             if (err == null) tcp.state = .Disconnected;
         },
+        .read => {
+            anyReq.req.read.receivedLen = bytesTransferred;
+        },
+        else => {},
     }
 
     anyReq.alive = false;
@@ -72,7 +80,7 @@ pub fn CleanOV(self: *Self) void {
     self.base.overlapped = @import("std").mem.zeroes(Win.Request);
 }
 
-pub fn MakeConnect(address: []const u8, port: u16, timeout: u64, tcp: *Tcp, cb: Callback) error{BadAddress}!Self {
+pub fn MakeConnect(address: []const u8, port: u16, timeout: u64, cb: Callback) error{BadAddress}!Self {
     return .{
         .req = .{
             .connection = .{
@@ -86,14 +94,12 @@ pub fn MakeConnect(address: []const u8, port: u16, timeout: u64, tcp: *Tcp, cb: 
 
         .cb = cb,
         .alive = false,
-        .base = BaseReq.Make(&tcp.handle),
     };
 }
 
-pub fn MakeAccept(tcp: *Tcp, cb: Callback) Self {
+pub fn MakeAccept(cb: Callback) Self {
     return .{
         .alive = false,
-        .base = BaseReq.Make(&tcp.handle),
         .req = .{
             .accept = .{},
         },
@@ -101,12 +107,35 @@ pub fn MakeAccept(tcp: *Tcp, cb: Callback) Self {
     };
 }
 
-pub fn MakeDisconnect(tcp: *Tcp, cb: Callback) Self {
+pub fn MakeDisconnect(cb: Callback) Self {
     return .{
         .alive = false,
-        .base = BaseReq.Make(&tcp.handle),
         .req = .{
             .disconnect = .{},
+        },
+        .cb = cb,
+    };
+}
+
+pub fn MakeSend(buffer: []u8, cb: Callback) Self {
+    return .{
+        .alive = false,
+        .req = .{
+            .send = .{
+                .buffer = buffer,
+            },
+        },
+        .cb = cb,
+    };
+}
+
+pub fn MakeRead(buffer: []u8, cb: Callback) Self {
+    return .{
+        .alive = false,
+        .req = .{
+            .read = .{
+                .buffer = buffer,
+            },
         },
         .cb = cb,
     };
@@ -141,6 +170,25 @@ pub fn GetDisconnect(self: *Self) *Disconnect {
         unreachable;
 
     return &self.req.disconnect;
+}
+
+pub fn GetSend(self: *Self) *Send {
+    if (self.req != .send)
+        unreachable;
+
+    return &self.req.send;
+}
+
+pub fn GetRead(self: *Self) *Read {
+    if (self.req != .read)
+        unreachable;
+
+    return &self.req.read;
+}
+
+// used by Tcp.zig
+pub fn BindTcp(self: *Self, tcp: *Tcp) void {
+    self.base = BaseReq.Make(&tcp.handle);
 }
 
 //                          ----------------      Private     ----------------

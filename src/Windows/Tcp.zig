@@ -24,6 +24,22 @@ pub const AddressMax = ws2_32.sockaddr.storage;
 pub const AddressLength = @sizeOf(AddressMax) + 16;
 pub const AddressesLength = AddressLength * 2;
 
+pub const Buffer = extern struct {
+    len: win.ULONG,
+    buf: [*]u8,
+
+    pub fn ToSlice(self: Buffer) []u8 {
+        return self.buf[0..self.len];
+    }
+
+    pub fn FromSlice(slice: []u8) Buffer {
+        return .{
+            .len = @intCast(slice.len),
+            .buf = @ptrCast(slice.ptr),
+        };
+    }
+};
+
 pub const Error = Windows.Error;
 
 const LPFN_CONNECTEX = *const fn (
@@ -187,6 +203,69 @@ pub fn Disconnect(self: Self, ov: *Request) Error!bool {
     }
 
     return true;
+}
+
+// Launch a send overlapped request
+// return true if the send request immediately succeeded
+pub fn Send(self: Self, buffer: []u8, ov: *Request) Error!bool {
+    self.ValidateSocket();
+
+    if (buffer.len == 0) unreachable;
+
+    var winBuffer: Buffer = Buffer.FromSlice(buffer);
+
+    var bytesSend: win.DWORD = 0;
+
+    if (ws2_32.WSASend(
+        self.handle,
+        @ptrCast(&winBuffer),
+        1,
+        &bytesSend,
+        0,
+        ov,
+        null,
+    ) == 0) {
+        return true;
+    }
+
+    const lastError = ws2_32.WSAGetLastError();
+
+    if (lastError != .WSA_IO_PENDING)
+        return win.unexpectedWSAError(lastError);
+
+    return false;
+}
+
+// Launch a read overlapped request
+// return true if the read request immediately succeeded
+pub fn Read(self: Self, buffer: []u8, ov: *Request) Error!bool {
+    self.ValidateSocket();
+
+    if (buffer.len == 0) unreachable;
+
+    var winBuffer: Buffer = Buffer.FromSlice(buffer);
+
+    var bytesReceived: win.DWORD = 0;
+    var dummyFlags: win.DWORD = 0;
+
+    if (ws2_32.WSARecv(
+        self.handle,
+        @ptrCast(&winBuffer),
+        1,
+        &bytesReceived,
+        &dummyFlags,
+        ov,
+        null,
+    ) == 0) {
+        return true;
+    }
+
+    const lastError = ws2_32.WSAGetLastError();
+
+    if (lastError != .WSA_IO_PENDING)
+        return win.unexpectedWSAError(lastError);
+
+    return false;
 }
 
 // Init things we need before using this namespace

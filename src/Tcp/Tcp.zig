@@ -81,6 +81,8 @@ pub fn Accept(self: *Self, accepting: *Self, acceptBuffer: []u8, req: *AnyReques
     if (self.state != .Listening or req.req != .accept)
         unreachable;
 
+    req.BindTcp(self);
+
     req.req.accept.acceptBuffer = acceptBuffer;
     req.req.accept.accepting = accepting;
 
@@ -93,6 +95,8 @@ pub fn Accept(self: *Self, accepting: *Self, acceptBuffer: []u8, req: *AnyReques
 pub fn Connect(self: *Self, req: *AnyRequest) !void {
     if (req.req != .connection or self.state != .Created)
         unreachable;
+
+    req.BindTcp(self);
 
     const connectReq = &req.req.connection;
 
@@ -111,6 +115,8 @@ pub fn Disconnect(self: *Self, req: *AnyRequest) !void {
     if (req.req != .disconnect or self.state != .Connected)
         unreachable;
 
+    req.BindTcp(self);
+
     if (try self.socket.Disconnect(&req.base.overlapped)) {
         self.state = .Disconnected;
         req.cb(self, req, null);
@@ -118,6 +124,17 @@ pub fn Disconnect(self: *Self, req: *AnyRequest) !void {
     }
 
     self.AddReqCount();
+}
+
+pub fn Send(self: *Self, req: *AnyRequest) !void {
+    if (req.req != .send or self.state != .Connected)
+        unreachable;
+
+    req.BindTcp(self);
+
+    if (try self.socket.Send(req.req.send.buffer, &req.base.overlapped)) {
+        req.cb(self, req, null);
+    } else self.AddReqCount();
 }
 
 //                          ------------- Public Getters/Setters -------------

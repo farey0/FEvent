@@ -1,5 +1,5 @@
-//! FEvent.Tcp
-//! Connection Request : Handle an asynchronous request to connect a socket to a distant host
+//! FEvent.Tcp.Request
+//! Accept Request
 //!
 //! Author : Farey0
 

@@ -1,4 +1,4 @@
-//! FEvent.Tcp
+//! FEvent.Tcp.Request
 //! Author : Farey0
 //!
 

@@ -99,7 +99,7 @@ pub fn Run(self: *Self, defaultTimeOut: ?u32) !void {
             const req = entry.GetRequest();
 
             switch (req.handle.type) {
-                .Tcp => @import("Tcp/AnyRequest.zig").HandleCompletion(req, err),
+                .Tcp => @import("Tcp/AnyRequest.zig").HandleCompletion(req, err, entry.dwNumberOfBytesTransferred),
             }
         }
     }
