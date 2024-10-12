@@ -1,4 +1,5 @@
-//! FEvent.
+//! FEvent.Loop
+//! 
 //! Author : Farey0
 
 //                          ----------------   Declarations   ----------------

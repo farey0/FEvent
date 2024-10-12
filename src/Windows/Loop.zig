@@ -1,7 +1,8 @@
-//! FEvent.
+//! FEvent.Windows.Loop
+//! 
 //! Author : Farey0
-//!
-//!
+//! 
+//! Specific Windows loop implementation
 
 //                          ----------------   Declarations   ----------------
 

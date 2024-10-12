@@ -1,8 +1,9 @@
-//! FEvent.Tcp
-//! AnyRequest : Union of all the tcp's requests with base type.
-//! Use this one if you allocate memory for requests
+//! FEvent.Tcp.AnyRequest
 //!
 //! Author : Farey0
+//!
+//! AnyRequest : Union of all the tcp's requests with base type.
+//! Use this one if you allocate memory for requests
 
 //                          ----------------   Declarations   ----------------
 

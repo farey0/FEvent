@@ -1,7 +1,9 @@
-//! FEvent
+//! FEvent.Timer.Request
+//! 
 //! Author : Farey0
 //!
-//!
+//! Structure to handle a timer request
+//! The timer request can be used to set a timer
 
 //                          ----------------   Declarations   ----------------
 
@@ -23,7 +25,7 @@ cb: Callback = undefined,
 //                          ----------------      Public      ----------------
 
 pub fn SetData(self: *Self, dataPtr: anytype) void {
-    if (@typeInfo(@TypeOf(dataPtr)) != .Pointer)
+    if (@typeInfo(@TypeOf(dataPtr)) != .pointer)
         @compileError("SetData can only hold pointers");
 
     self.data = @ptrCast(dataPtr);

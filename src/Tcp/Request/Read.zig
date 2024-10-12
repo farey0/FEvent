@@ -1,7 +1,8 @@
 //! FEvent.Tcp.Request
+//! 
 //! Author : Farey0
 //!
-//!
+//! Handle an asynchronous request to read from a socket
 
 //                          ----------------   Declarations   ----------------
 

@@ -1,9 +1,8 @@
-const win = @import("std").os.windows;
-
-const Loop = @import("Loop.zig");
-const Tcp = @import("Tcp/Tcp.zig");
+pub const Loop = @import("Loop.zig");
+pub const Tcp = @import("Tcp/Tcp.zig");
 
 test "simple test" {
+    @import("std").testing.refAllDecls(@This());
     try main();
 }
 

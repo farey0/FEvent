@@ -1,7 +1,8 @@
 //! FEvent.Tcp
+//! 
 //! Author : Farey0
 //!
-//! Windows general stuff
+//! Windows specific implementation
 
 // Win Error Handling
 

@@ -1,6 +1,8 @@
-//! FEvent.Tcp.Request
+//! FEvent.Tcp.Request.Disconnect
+//! 
 //! Author : Farey0
 //!
+//! Handle an asynchronous request to disconnect a socket
 
 //                          ----------------   Declarations   ----------------
 

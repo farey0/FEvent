@@ -1,7 +1,8 @@
-//! FEvent.Tcp.Request
-//! Connection Request : Handle an asynchronous request to connect a socket to a distant host
+//! FEvent.Tcp.Request.Connect
 //!
 //! Author : Farey0
+//! 
+//! Connection Request : Handle an asynchronous request to connect a socket to a distant host
 
 //                          ----------------   Declarations   ----------------
 

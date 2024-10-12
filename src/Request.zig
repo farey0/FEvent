@@ -1,7 +1,6 @@
-//! FEvent.
+//! FEvent.Request
+//! 
 //! Author : Farey0
-//!
-//!
 
 //                          ----------------   Declarations   ----------------
 

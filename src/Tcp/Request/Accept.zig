@@ -1,7 +1,8 @@
-//! FEvent.Tcp.Request
-//! Accept Request
-//!
+//! FEvent.Tcp.Request.Accept
+//! 
 //! Author : Farey0
+//!
+//! Handle an asynchronous request to accept a connection on a socket
 
 //                          ----------------   Declarations   ----------------
 

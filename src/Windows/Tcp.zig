@@ -1,7 +1,8 @@
-//! FEvent.
+//! FEvent.Windows.Tcp
+//! 
 //! Author : Farey0
 //!
-//! Manage a windows tcp socket
+//! Specific Windows Tcp handle implementation
 
 //                          ----------------   Declarations   ----------------
 

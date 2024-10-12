@@ -1,4 +1,5 @@
-//! FEvent
+//! FEvent.Timer.Manager
+//! 
 //! Author : Farey0
 //!
 //! Simple Timer management

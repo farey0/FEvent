@@ -1,4 +1,5 @@
-//! FEvent.
+//! FEvent.Handle
+//! 
 //! Author : Farey0
 //!
 //! Base of every handle
@@ -29,7 +30,7 @@ nextHandle: ?*Self = null,
 //                          ------------- Public Getters/Setters -------------
 
 pub fn SetData(self: *Self, dataPtr: anytype) void {
-    if (@typeInfo(@TypeOf(dataPtr)) != .Pointer)
+    if (@typeInfo(@TypeOf(dataPtr)) != .pointer)
         @compileError("SetData can only hold pointers");
 
     self.data = @ptrCast(dataPtr);
