@@ -1,5 +1,5 @@
-pub const Loop = @import("Loop.zig");
-pub const Tcp = @import("Tcp/Tcp.zig");
+pub const Loop = @import("FEvent").Loop;
+pub const Tcp = @import("FEvent").Tcp;
 
 test "simple test" {
     @import("std").testing.refAllDecls(@This());
