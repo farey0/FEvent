@@ -17,7 +17,7 @@
     .dependencies = .{
         .FLib = .{
             .url = "https://github.com/farey0/FLib/archive/refs/heads/main.zip",
-            .hash = "1220fe5199ea16f5af4b626fb670f11603b1a4cec40231f2975f4e3c989230eb1ac2",
+            .hash = "12205eca088bac0ec34b8ee60c348e572d3a56ff459559c4a9a3845691426b2582c5",
         },
     },
     .paths = .{
